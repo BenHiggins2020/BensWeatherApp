@@ -1,6 +1,7 @@
 package com.ben.bensweatherapp.presentation
 
 import android.util.Log
+import android.widget.Space
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -37,7 +38,7 @@ import kotlin.time.DurationUnit
 fun WeatherCard(
     modifier: Modifier?=null,
     backgroundColor: Color,
-    cardData: CardData? = null
+    cardData: CardData? = null,
 ){
     val date = LocalDate.parse(cardData?.time)
     val DOW = (date.dayOfWeek).toString().lowercase().replaceFirstChar({it -> it.uppercase()})
@@ -69,13 +70,27 @@ fun WeatherCard(
             TextButton(onClick = { /*TODO*/ },
                 modifier = Modifier.align(Alignment.CenterHorizontally),
                 ) {
-                Text(
-                    text= "${DOW} ${month} ${DOM} ",
-                    color = Color.White,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 18.sp
+                Column(
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text= " ${DOW} ${month} ${DOM}  ",
+                        color = Color.White,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 18.sp
 
-                )
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text= " ${cardData?.locationName} ",
+                        color = Color.White,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 18.sp
+
+                    )
+                }
+
             }
             Image(
                 bitmap = bitmap!!.asImageBitmap(),
