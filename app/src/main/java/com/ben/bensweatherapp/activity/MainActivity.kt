@@ -1,10 +1,12 @@
 package com.ben.bensweatherapp.activity
 
+import android.content.Context
 import android.content.Intent
 import android.location.Address
 import android.location.Geocoder
 import android.os.Bundle
 import android.util.Log
+import android.view.inputmethod.InputMethodManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
@@ -24,6 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -186,6 +190,8 @@ class MainActivity : ComponentActivity() {
 
 
                         ) {
+//                            val keyboardController = LocalSoftwareKeyboardController.current
+                            val imme = LocalContext.current.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                             TextField(
                                 value = text,
                                 onValueChange = { text = it },
@@ -193,17 +199,18 @@ class MainActivity : ComponentActivity() {
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done,
 
                                 ),
+
                                 keyboardActions = KeyboardActions(
                                     onDone = {
                                         //call API
                                         val locationString = text.toString().lowercase().trim()
 
-                                        val newLocation = Geocoder(applicationContext).getFromLocationName(locationString,5)
+                                        val newLocation = Geocoder(applicationContext).getFromLocationName(locationString,10)
                                         if (newLocation != null) {
                                             locationList.clear()
                                             locationList.addAll(newLocation)
                                         }
-                                        this.defaultKeyboardAction(imeAction = ImeAction.Done)
+                                        imme.toggleSoftInput(InputMethodManager.HIDE_IMPLICIT_ONLY, 0)
 
                                         Log.e(TAG,"calling api to search for this text: $text and got $newLocation")
                                     }
