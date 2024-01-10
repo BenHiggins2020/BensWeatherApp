@@ -16,5 +16,5 @@ data class CardData(
     val uv_index_max: Any,
     val weather_code: Int,
     var icon:Bitmap?=null,
-    var locationName: String? = null
+    var locationName: String? = null,
 )
