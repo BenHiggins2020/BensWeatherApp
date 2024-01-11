@@ -1,7 +1,6 @@
 package com.ben.bensweatherapp.activity
 
 import android.content.Context
-import android.content.Intent
 import android.location.Address
 import android.location.Geocoder
 import android.os.Bundle
@@ -21,25 +20,19 @@ import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.material.TextField
 import androidx.compose.runtime.*
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.MutableLiveData
 import com.ben.bensweatherapp.data.WeatherData
 import com.ben.bensweatherapp.data.presentation.CardData
 import com.ben.bensweatherapp.presentation.HourlyDataRowViewModel
-import com.ben.bensweatherapp.presentation.LocationSearchPanel
-import com.ben.bensweatherapp.presentation.WeatherCard
 import com.ben.bensweatherapp.presentation.WeatherCardViewModel
-import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Observer
 import io.reactivex.rxjava3.disposables.Disposable
 import com.ben.bensweatherapp.util.BensDataProviderUtil
@@ -151,11 +144,6 @@ class MainActivity : ComponentActivity() {
 
         val locationList = mutableStateListOf<Address>()
 
-        val locations by remember {
-            mutableStateOf(locationList)
-        }
-
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -204,15 +192,20 @@ class MainActivity : ComponentActivity() {
                                     onDone = {
                                         //call API
                                         val locationString = text.toString().lowercase().trim()
+                                        if(locationString.isNullOrEmpty()){
+                                            Log.e(TAG," no Location entered ")
+                                        } else {
+                                            val newLocation = Geocoder(applicationContext).getFromLocationName(locationString,10)
+                                            if (newLocation != null) {
+                                                locationList.clear()
+                                                locationList.addAll(newLocation)
+                                                Log.e(TAG,"calling api to search for this text: $text and got $newLocation")
 
-                                        val newLocation = Geocoder(applicationContext).getFromLocationName(locationString,10)
-                                        if (newLocation != null) {
-                                            locationList.clear()
-                                            locationList.addAll(newLocation)
+                                            }
                                         }
+
                                         imme.toggleSoftInput(InputMethodManager.HIDE_IMPLICIT_ONLY, 0)
 
-                                        Log.e(TAG,"calling api to search for this text: $text and got $newLocation")
                                     }
                                 ),
 

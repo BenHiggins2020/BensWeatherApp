@@ -116,7 +116,7 @@ class WeatherCardViewModel: ViewModel() {
                             text= " ${cardData?.locationName} ",
                             color = Color.White,
                             fontWeight = FontWeight.Normal,
-                            fontSize = 18.sp
+                            fontSize = 16.sp,
 
                         )
                     }
