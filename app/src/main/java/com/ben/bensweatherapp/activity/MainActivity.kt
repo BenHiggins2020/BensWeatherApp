@@ -1,6 +1,7 @@
 package com.ben.bensweatherapp.activity
 
 import android.content.Context
+import android.graphics.drawable.Icon
 import android.location.Address
 import android.location.Geocoder
 import android.os.Bundle
