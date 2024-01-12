@@ -32,7 +32,7 @@ class HourlyDataRowViewModel : ViewModel() {
     val TAG = HourlyDataRowViewModel::class.java.simpleName
 
     fun updateHourlyData(data:Hourly){
-        Log.w(TAG," updating HourlyData with new Data  ==${liveHourlyData.value?.equals(data)}")
+        Log.d(TAG," updating HourlyData with new Data  ==${liveHourlyData.value?.equals(data)}")
 
         liveHourlyData.value = data
     }
@@ -49,7 +49,7 @@ class HourlyDataRowViewModel : ViewModel() {
         val date = Date(System.currentTimeMillis())
         var time: String = format.format(date)
         var hours = time.get(0).toString() + time.get(1).toString()
-        Log.e("MainActivity","BEN time = $time date = $date hours = $hours")
+        Log.d("MainActivity","BEN time = $time date = $date hours = $hours")
 
         if(hours.toInt() < 12){
             //AM
@@ -64,7 +64,7 @@ class HourlyDataRowViewModel : ViewModel() {
         }
 
         val index = data!!.time.indexOfFirst{
-            Log.e("MainActivity,HourlyDataRow"," it = ${convertTime(it)[0]} vs mytime = $time")
+            Log.d("MainActivity,HourlyDataRow"," it = ${convertTime(it)[0]} vs mytime = $time")
             convertTime(it)[0].equals(time).also { Log.d("MainActivity","$it vs $time") }
         }
         Log.d("BEN","BEN time = $time index = $index")
@@ -88,7 +88,7 @@ class HourlyDataRowViewModel : ViewModel() {
 
 
             } catch(e:Exception){
-                Log.e("MainActivity","Exception = $e")
+                Log.d("MainActivity","Exception = $e")
             }
         }
 
@@ -146,7 +146,7 @@ class HourlyDataRowViewModel : ViewModel() {
         launch {
             val res = AppModule.getIconApi().getIcon(weather_code.toWeatherIcon(weather_code))
 
-            Log.e("getHourlyIconApi","icon API call  ${res.contentType()}")
+            Log.d("getHourlyIconApi","icon API call  ${res.contentType()}")
             val bitmap = BitmapFactory.decodeStream(res.byteStream()) as ImageBitmap
         }
     }

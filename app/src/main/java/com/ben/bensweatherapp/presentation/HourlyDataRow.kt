@@ -31,7 +31,7 @@ fun HourlyDataRow(data:Hourly){
     val date = Date(System.currentTimeMillis())
     var time: String = format.format(date)
     var hours = time.get(0).toString() + time.get(1).toString()
-    Log.e("MainActivity","BEN time = $time date = $date hours = $hours")
+    Log.d("MainActivity","BEN time = $time date = $date hours = $hours")
 
     if(hours.toInt() < 12){
         //AM
@@ -46,7 +46,7 @@ fun HourlyDataRow(data:Hourly){
     }
 
     val index = data.time.indexOfFirst{
-        Log.e("MainActivity,HourlyDataRow"," it = ${convertTime(it)[0]} vs mytime = $time")
+        Log.d("MainActivity,HourlyDataRow"," it = ${convertTime(it)[0]} vs mytime = $time")
         convertTime(it)[0].equals(time.toString()).also { Log.d("MainActivity","$it vs $time") }
     }
     Log.d("BEN","BEN time = $time index = $index")
@@ -68,7 +68,7 @@ fun HourlyDataRow(data:Hourly){
                 data.wind_speed_10m = data.wind_speed_10m.subList(fromIndex = index, toIndex = data.time.size-1)
 
             } catch(e:Exception){
-                Log.e("MainActivity","Exception = $e")
+                Log.d("MainActivity","Exception = $e")
             }
     }
 
@@ -124,7 +124,7 @@ fun getHourlyIconApi(weather_code:Int) = runBlocking {
         launch {
             val res = AppModule.getIconApi().getIcon(weather_code.toWeatherIcon(weather_code))
 
-            Log.e("getHourlyIconApi","icon API call  ${res.contentType()}")
+            Log.d("getHourlyIconApi","icon API call  ${res.contentType()}")
             val bitmap = BitmapFactory.decodeStream(res.byteStream()) as ImageBitmap
         }
 }

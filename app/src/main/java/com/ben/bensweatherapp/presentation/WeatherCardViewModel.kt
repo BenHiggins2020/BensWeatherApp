@@ -32,13 +32,14 @@ class WeatherCardViewModel: ViewModel() {
 
     private val emptyCard=CardData(0,0.0,0,0.0,0.0,0,time,0,0)
     var liveCardData = MutableLiveData(emptyCard)
+    val bitMapData = MutableLiveData(Bitmap.createBitmap(10,10,Bitmap.Config.ARGB_8888))
 
     private val TAG = WeatherCardViewModel::class.java.simpleName
 
     fun updateCardData(newCardData: CardData){
-        Log.w(TAG," updating CardData with new Data ${liveCardData.value?.equals(newCardData)}")
+        Log.d(TAG," updating CardData with new Data ${liveCardData.value?.equals(newCardData)}")
         liveCardData.value = newCardData
-        Log.w(TAG," updatED CardData with new Data ${liveCardData.value?.equals(newCardData)}")
+        Log.d(TAG," updatED CardData with new Data ${liveCardData.value?.equals(newCardData)}")
 
     }
 
@@ -51,17 +52,18 @@ class WeatherCardViewModel: ViewModel() {
 
     ){
         val cardData by viewModel.liveCardData.observeAsState()
+        val bitmap by viewModel.bitMapData.observeAsState()
 
-        Log.e(TAG,"cardData = emptyCard? =  ${cardData?.equals(emptyCard)}")
+        Log.d(TAG,"cardData = emptyCard? =  ${cardData?.equals(emptyCard)}")
 
 
-        Log.e(TAG,"card data time = $time")
+        Log.d(TAG,"card data time = $time")
         var date:LocalDate
         try{
             date = LocalDate.parse(cardData?.time)
 
         }catch(e:java.lang.Exception){
-            Log.e(TAG,"ERROR trying to create date $e")
+            Log.d(TAG,"ERROR trying to create date $e")
             date = LocalDate.now()
         }
 
@@ -72,13 +74,8 @@ class WeatherCardViewModel: ViewModel() {
 
         var daylights = Double.valueOf (cardData?.daylight_duration.toString())
         var daylighthrs = (daylights / 60 / 60).roundToInt()
-        var bitmap by remember {
-            mutableStateOf(cardData?.icon)
-        }
 
-        if(bitmap == null){
-            bitmap = Bitmap.createBitmap(10,10,Bitmap.Config.ARGB_8888)
-        }
+
 
 
         Card(

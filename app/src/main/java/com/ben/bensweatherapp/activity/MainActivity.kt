@@ -61,7 +61,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.w(TAG,"onCreate called")
+        Log.d(TAG,"onCreate called")
 
         val newLong = -122.083922
         val newLat = 37.4220936
@@ -75,7 +75,7 @@ class MainActivity : ComponentActivity() {
         }catch (e:Exception){
             e.printStackTrace()
         }
-        Log.w(TAG,"using data provider to force on next...")
+        Log.d(TAG,"using data provider to force on next...")
         dataProviderUtil.hourlyDataSubject.onNext(dataProviderUtil.apiData)
         dataProviderUtil.cardDataSubject.onNext(dataProviderUtil.cardData)
 
@@ -87,7 +87,7 @@ class MainActivity : ComponentActivity() {
     private fun getWeatherCardObserver(): Observer<CardData> {
         return object: Observer<CardData> {
             override fun onSubscribe(d: Disposable) {
-                Log.w(TAG,"On subscribe to disposable ")
+                Log.d(TAG,"On subscribe to disposable ")
 
             }
 
@@ -101,9 +101,10 @@ class MainActivity : ComponentActivity() {
             }
 
             override fun onNext(t: CardData) {
-                Log.e(TAG,"onNext(CardData)")
+                Log.d(TAG,"onNext(CardData)")
                 weatherCard.liveCardData.value = t
-                Log.e(TAG," does onNext equal provider data ${t.equals(dataProviderUtil.cardData)}")
+                weatherCard.bitMapData.value = t.icon
+                Log.d(TAG," does onNext equal provider data ${t.equals(dataProviderUtil.cardData)}")
 
             }
 
@@ -113,7 +114,7 @@ class MainActivity : ComponentActivity() {
     private fun getHourlyDataObserver(): Observer<WeatherData> {
         return object: Observer<WeatherData> {
             override fun onSubscribe(d: Disposable) {
-                Log.w(TAG,"On subscribe to disposable")
+                Log.d(TAG,"On subscribe to disposable")
 
             }
 
@@ -126,8 +127,8 @@ class MainActivity : ComponentActivity() {
             }
 
             override fun onNext(t: WeatherData) {
-                Log.e(TAG,"onNext(WeatherData)")
-                Log.e(TAG," does onNext equal provider data ${t.equals(dataProviderUtil.apiData.hourly)}")
+                Log.d(TAG,"onNext(WeatherData)")
+                Log.d(TAG," does onNext equal provider data ${t.equals(dataProviderUtil.apiData.hourly)}")
                 hourlyData.liveHourlyData.value = t.hourly
 
             }
@@ -194,13 +195,13 @@ class MainActivity : ComponentActivity() {
                                         //call API
                                         val locationString = text.toString().lowercase().trim()
                                         if(locationString.isNullOrEmpty()){
-                                            Log.e(TAG," no Location entered ")
+                                            Log.d(TAG," no Location entered ")
                                         } else {
                                             val newLocation = Geocoder(applicationContext).getFromLocationName(locationString,10)
                                             if (newLocation != null) {
                                                 locationList.clear()
                                                 locationList.addAll(newLocation)
-                                                Log.e(TAG,"calling api to search for this text: $text and got $newLocation")
+                                                Log.d(TAG,"calling api to search for this text: $text and got $newLocation")
 
                                             }
                                         }
@@ -219,7 +220,7 @@ class MainActivity : ComponentActivity() {
                             LazyColumn(content = {
                                 items(locationList.size){ item ->
 
-                                    Log.e(TAG," lazy item scope = it ${locationList.get(item)}")
+                                    Log.d(TAG," lazy item scope = it ${locationList.get(item)}")
                                     TextButton(onClick = {
                                         val lat = locationList[item].latitude
                                         val long = locationList[item].longitude
@@ -245,7 +246,7 @@ class MainActivity : ComponentActivity() {
 
                weatherCard.WeatherCard(
                     callback = {
-                        Log.e(TAG," callback!!!! $visable is not ${!visable}")
+                        Log.d(TAG," callback!!!! $visable is not ${!visable}")
                         visable = !visable
                         text = ""
                     },

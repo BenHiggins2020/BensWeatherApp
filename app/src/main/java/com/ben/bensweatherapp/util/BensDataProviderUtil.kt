@@ -59,22 +59,22 @@ class BensDataProviderUtil(context:Context,activity: Activity) {
                     }
                 }
             }else if(it.isCancelled){
-                Log.w(TAG,"getLocation Job is cancelled")
+                Log.d(TAG,"getLocation Job is cancelled")
             }
         }
 
         callWeatherApi().also {
             if(it.isCompleted){
-                Log.w(TAG," job is compete")
+                Log.d(TAG," job is compete")
                 callIconApi().also {
                     if(it.isCompleted) {
-                        Log.w(TAG," callIconApi is complete")
+                        Log.d(TAG," callIconApi is complete")
                         hourlyDataSubject.onNext(apiData)
                         cardDataSubject.onNext(cardData)
                     }
                 }
             } else if(it.isCancelled) {
-                Log.w(TAG," job is cancelled")
+                Log.d(TAG," job is cancelled")
 
             }
             while (it.isActive){
@@ -88,20 +88,36 @@ class BensDataProviderUtil(context:Context,activity: Activity) {
     fun updateLocation(lat:Double, long:Double){
         if(ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED){
             ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),0)
-            Log.e(TAG,"getLocation - permission not granted... requesting permission")
+            Log.d(TAG,"getLocation - permission not granted... requesting permission")
         }
 
         this.lat = lat
         this.long = long
         val geocoder = Geocoder(context)
         val location = geocoder.getFromLocation(lat,long,3)
-        locationName = location?.get(0)?.locality +", "+ location?.get(0)?.adminArea ?: ""
+        var name1 = location?.get(0)?.locality
+        if(name1 == "null" || name1.isNullOrEmpty()){
+            Log.d(TAG,"BEN - Locality =  ${location?.get(0)?.locality} \n" +
+                    "SubLocality =  ${location?.get(0)?.subLocality} \n" +
+                    "SubAdminArea =  ${location?.get(0)?.subAdminArea} \n"+
+                    "Locale =  ${location?.get(0)?.locale} \n"+
+                    "thoroughfare =  ${location?.get(0)?.thoroughfare} \n"+
+                    "premises =  ${location?.get(0)?.premises} \n"
+
+            )
+            name1 = location?.get(0)?.subAdminArea
+        }
+        locationName = name1 +", "+ location?.get(0)?.adminArea ?: ""
 
         callWeatherApi().also {
             if(it.isCompleted){
-                Log.w(TAG," updateLocation finished, updating values!")
+                callIconApi().also {
+                    if(it.isCompleted){
+                        cardDataSubject.onNext(cardData)
+                    }
+                }
+                Log.d(TAG," updateLocation finished, updating values!")
                 hourlyDataSubject.onNext(apiData)
-                cardDataSubject.onNext(cardData)
             }
         }
         Log.d(TAG,"location from geocoder = $location")
@@ -123,9 +139,9 @@ class BensDataProviderUtil(context:Context,activity: Activity) {
     }
     fun getLocation() = runBlocking{
         launch {
-            Log.e(TAG,"getLocation coroutine launched")
+            Log.d(TAG,"getLocation coroutine launched")
             if(ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED){
-                Log.e(TAG,"getLocation - permission not granted... requesting permission")
+                Log.d(TAG,"getLocation - permission not granted... requesting permission")
 
                 val job = launch {
                     getPermissions()
@@ -189,7 +205,7 @@ class BensDataProviderUtil(context:Context,activity: Activity) {
 
                 when(order.get(2)){
                     gpsAccuracy ->{
-                        Log.e(TAG,"highest accuracy = GPS")
+                        Log.d(TAG,"highest accuracy = GPS")
                         val location = gpsLocation
                         if(location != null){
                             lat = location?.latitude!!
@@ -200,9 +216,9 @@ class BensDataProviderUtil(context:Context,activity: Activity) {
                         }
 
                         else {
-                            Log.e(TAG," time is null!");
+                            Log.d(TAG," time is null!");
                         }
-                        Log.e(TAG,"Time = time $time")
+                        Log.d(TAG,"Time = time $time")
                     }
                     fusedAccuracy -> {
                         Log.d(TAG,"highest accuracy = FUSED")
@@ -213,7 +229,7 @@ class BensDataProviderUtil(context:Context,activity: Activity) {
                             time = location.time
 
                         }
-                        Log.e(TAG,"Time = time $time")
+                        Log.d(TAG,"Time = time $time")
                     }
                     networkAccuracy -> {
                         Log.d(TAG,"highest accuracy = Network")
@@ -224,7 +240,7 @@ class BensDataProviderUtil(context:Context,activity: Activity) {
                             time = location.time
 
                         }
-                        Log.e(TAG,"Time = time $time")
+                        Log.d(TAG,"Time = time $time")
 
                     }
 
@@ -254,7 +270,7 @@ class BensDataProviderUtil(context:Context,activity: Activity) {
 
 
             }*/
-            Log.e(TAG,"getLocation coroutine finished")
+            Log.d(TAG,"getLocation coroutine finished")
 
         }
 
@@ -264,13 +280,11 @@ class BensDataProviderUtil(context:Context,activity: Activity) {
     }
     fun callWeatherApi() = runBlocking {
         launch {
-            Log.e(TAG," API CALL latitude = $lat longitude = $long")
+            Log.d(TAG," API CALL latitude = $lat longitude = $long")
             apiData = AppModule.weatherApi().getWeatherData(latitude = lat.toString(), longitude = long.toString())
             cardData = apiData.daily.toCardData(0)
-
-            if(locationName != null && locationName.isNotEmpty()){
-                cardData.locationName = locationName
-            }
+            cardData.locationName = locationName
+            Log.d(TAG,"callWeatherApi -> weather_code = ${cardData.weather_code}")
             Log.d(TAG,"Api call = ${apiData.daily.time.get(0)}")
             //TODO: call observers
 
@@ -278,9 +292,10 @@ class BensDataProviderUtil(context:Context,activity: Activity) {
     }
     fun callIconApi() = runBlocking {
         launch {
+            Log.d(TAG," callIconApi -> weather_code = ${cardData.weather_code}")
             val res = AppModule.getIconApi().getIcon(cardData.weather_code.toWeatherIcon(cardData.weather_code))
 
-            Log.e(TAG,"icon API call  ${res.contentType()}")
+            Log.d(TAG,"icon API call  ${res.contentType()}")
             val bitmap = BitmapFactory.decodeStream(res.byteStream())
             cardData.icon = bitmap
             //TODO: call observers
