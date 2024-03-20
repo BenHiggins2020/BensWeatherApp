@@ -7,30 +7,18 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.android.HiltAndroidApp
+import dagger.hilt.components.SingletonComponent
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.create
 
-object AppModule {
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class AppModule {
 
-    fun weatherApi(): WeatherApi {
-        Log.d("AppModule","calling retrofit instance for weather api")
-        val factory = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
-        return Retrofit.Builder()
-            .baseUrl("https://api.open-meteo.com")
-            .addConverterFactory(MoshiConverterFactory.create(factory))
-            .build()
-            .create()
 
-    }
-
-    fun getIconApi(): IconApi {
-        val factory = GsonBuilder().setLenient().create()
-        return Retrofit.Builder()
-            .baseUrl("https://openweathermap.org/")
-            .addConverterFactory(GsonConverterFactory.create(factory))
-            .build()
-            .create()
-    }
 }

@@ -15,9 +15,15 @@ import androidx.core.app.ActivityCompat
 import com.ben.bensweatherapp.AppModule
 import com.ben.bensweatherapp.data.Hourly
 import com.ben.bensweatherapp.data.WeatherData
+import com.ben.bensweatherapp.data.api.IconApi
+import com.ben.bensweatherapp.data.api.WeatherApi
 import com.ben.bensweatherapp.data.presentation.CardData
 import com.ben.bensweatherapp.mappers.toCardData
 import com.ben.bensweatherapp.mappers.toWeatherIcon
+import com.google.gson.GsonBuilder
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import dagger.hilt.android.qualifiers.ApplicationContext
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Observer
 import io.reactivex.rxjava3.disposables.Disposable
@@ -26,8 +32,20 @@ import io.reactivex.rxjava3.subjects.PublishSubject
 import io.reactivex.rxjava3.subjects.Subject
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.converter.moshi.MoshiConverterFactory
+import retrofit2.create
+import java.time.LocalDate
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class BensDataProviderUtil(context:Context,activity: Activity) {
+@Singleton
+class BensDataProviderUtil
+@Inject constructor(
+    @ApplicationContext private val context:Context,
+//    private val activity: Activity
+) {
 
     var long = 0.0
     var lat = 0.0
@@ -36,24 +54,20 @@ class BensDataProviderUtil(context:Context,activity: Activity) {
     lateinit var apiData: WeatherData
     lateinit var cardData: CardData
 
-    val activity = activity
     val cardDataSubject:Subject<CardData> = PublishSubject.create()
     val hourlyDataSubject:Subject<WeatherData> = PublishSubject.create()
 
-    val context = context
     val TAG = BensDataProviderUtil::class.java.simpleName
 
     init{
-
+        Log.d(TAG,"DataProvider: INIT")
         getLocation().also {
             if(it.isCompleted){
                 if(long != null && lat != null){
                     try {
                         val addresses = Geocoder(context).getFromLocation(lat, long, 5)
-                        Log.d(TAG,"BEN address - ${addresses}")
 
                         locationName = addresses?.get(0)?.locality +", "+ addresses?.get(0)?.adminArea ?: ""
-                        Log.d(TAG,"BEN address - ${addresses?.get(0)?.adminArea} $locationName ")
                     }catch (e:Exception){
                         e.printStackTrace()
                     }
@@ -68,7 +82,7 @@ class BensDataProviderUtil(context:Context,activity: Activity) {
                 Log.d(TAG," job is compete")
                 callIconApi().also {
                     if(it.isCompleted) {
-                        Log.d(TAG," callIconApi is complete")
+                        Log.d(TAG,"Initial Api and Card Data updated")
                         hourlyDataSubject.onNext(apiData)
                         cardDataSubject.onNext(cardData)
                     }
@@ -87,7 +101,7 @@ class BensDataProviderUtil(context:Context,activity: Activity) {
 
     fun updateLocation(lat:Double, long:Double){
         if(ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED){
-            ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),0)
+            ActivityCompat.requestPermissions(context as Activity, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),0)
             Log.d(TAG,"getLocation - permission not granted... requesting permission")
         }
 
@@ -116,12 +130,78 @@ class BensDataProviderUtil(context:Context,activity: Activity) {
                         cardDataSubject.onNext(cardData)
                     }
                 }
-                Log.d(TAG," updateLocation finished, updating values!")
+                Log.d(TAG," Updated Api and Card data ")
                 hourlyDataSubject.onNext(apiData)
             }
         }
         Log.d(TAG,"location from geocoder = $location")
 
+    }
+
+    private fun convertTime(time:String?):String{
+        Log.d(TAG,"ConvertTime: $time")
+        val hours = time?.substringBefore(":")?.toInt()
+        var convertedTime:String = time.toString()
+        if(hours == null) {
+            Log.e(TAG,"ConvertTime: Time is null!!!!")
+            //need new data..
+        }
+
+        if(hours!! > 12){
+            convertedTime = "${convertedTime.replaceBefore(":",(hours-12).toString())} PM"
+        } else if(hours == 12){
+            convertedTime = convertedTime.plus(" PM")
+        } else if(hours == 0){
+            convertedTime = "${convertedTime.replaceBefore(":", (12).toString())} AM"
+        }
+        else {
+            convertedTime = convertedTime.plus(" AM")
+        }
+
+        if(convertedTime[0] == '0'){
+            convertedTime = convertedTime.drop(0)
+        }
+
+
+        Log.d(TAG,"converted time: $time")
+        return convertedTime
+
+    }
+    fun createDate(cardDataTime:String?): Map<String,String>{
+        Log.e(TAG,"CreateDate: $cardDataTime" )
+
+        var mDate:String
+        var time:String
+        if(cardDataTime!!.contains("T")){
+             mDate = cardDataTime!!.substringBefore("T")
+             time = convertTime(cardDataTime?.substringAfter("T"))
+        } else {
+             mDate = cardDataTime ?: ""
+            Log.e(TAG,"Time was null!")
+             time = ""
+        }
+
+
+        var date: LocalDate
+
+        try{
+            date = LocalDate.parse(mDate)
+            Log.w(TAG,"Checking whether now ${LocalDate.now()} and api.time $date are equal = ${date == LocalDate.now()}")
+            if(date != LocalDate.now()){
+                //handle get new data
+            }
+
+        }catch(e:java.lang.Exception){
+            Log.d(TAG,"ERROR trying to create date $e")
+            date = LocalDate.now()
+        }
+
+        return mapOf(
+            Pair("DOW",(date.dayOfWeek).toString().lowercase().replaceFirstChar({it -> it.uppercase()})),
+            Pair("Time",time),
+            Pair("month",date.month.toString().lowercase().replaceFirstChar({it -> it.uppercase()})),
+            Pair("DOM",date.dayOfMonth.toString().lowercase().replaceFirstChar({it -> it.uppercase()}))
+        )
     }
 
     fun getWeatherCardSubject(): Observable<CardData> {
@@ -134,9 +214,10 @@ class BensDataProviderUtil(context:Context,activity: Activity) {
 
     private suspend fun getPermissions() = runBlocking{
         launch {
-            ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),0)
+            ActivityCompat.requestPermissions(context as Activity, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),0)
         }
     }
+
     fun getLocation() = runBlocking{
         launch {
             Log.d(TAG,"getLocation coroutine launched")
@@ -278,14 +359,22 @@ class BensDataProviderUtil(context:Context,activity: Activity) {
 
 
     }
+
     fun callWeatherApi() = runBlocking {
         launch {
             Log.d(TAG," API CALL latitude = $lat longitude = $long")
-            apiData = AppModule.weatherApi().getWeatherData(latitude = lat.toString(), longitude = long.toString())
+            apiData = weatherApi().getWeatherData(latitude = lat.toString(), longitude = long.toString())
             cardData = apiData.daily.toCardData(0)
             cardData.locationName = locationName
-            Log.d(TAG,"callWeatherApi -> weather_code = ${cardData.weather_code}")
-            Log.d(TAG,"Api call = ${apiData.daily.time.get(0)}")
+
+            Log.w(TAG,"Current Data: " +
+                    "${apiData.current.time} $locationName\n" +
+                    "Temp ${apiData.current.temperature_2m} ${apiData.current_units.temperature_2m} \n" +
+                    "Wind gusts ${apiData.current.wind_gusts_10m} ${apiData.current_units.wind_gusts_10m} \n" +
+                    "Wind speed ${apiData.current.wind_speed_10m} ${apiData.current_units.wind_speed_10m}\n " +
+                    "Wind direction ${apiData.current.wind_direction_10m} ${apiData.current_units.wind_direction_10m}")
+
+            Log.d(TAG,"Api call time= ${apiData.daily.time.first()} time two = ${apiData.daily.time[1]}")
             //TODO: call observers
 
         }
@@ -293,16 +382,34 @@ class BensDataProviderUtil(context:Context,activity: Activity) {
     fun callIconApi() = runBlocking {
         launch {
             Log.d(TAG," callIconApi -> weather_code = ${cardData.weather_code}")
-            val res = AppModule.getIconApi().getIcon(cardData.weather_code.toWeatherIcon(cardData.weather_code))
+            val res = getIconApi().getIcon(cardData.weather_code.toWeatherIcon(cardData.weather_code))
 
             Log.d(TAG,"icon API call  ${res.contentType()}")
             val bitmap = BitmapFactory.decodeStream(res.byteStream())
             cardData.icon = bitmap
             //TODO: call observers
-
-
-
         }
 
+    }
+
+
+    fun weatherApi(): WeatherApi {
+        Log.d("AppModule","calling retrofit instance for weather api")
+        val factory = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+        return Retrofit.Builder()
+            .baseUrl("https://api.open-meteo.com")
+            .addConverterFactory(MoshiConverterFactory.create(factory))
+            .build()
+            .create()
+
+    }
+
+    fun getIconApi(): IconApi {
+        val factory = GsonBuilder().setLenient().create()
+        return Retrofit.Builder()
+            .baseUrl("https://openweathermap.org/")
+            .addConverterFactory(GsonConverterFactory.create(factory))
+            .build()
+            .create()
     }
 }

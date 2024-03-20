@@ -1,7 +1,6 @@
 package com.ben.bensweatherapp.activity
 
 import android.content.Context
-import android.graphics.drawable.Icon
 import android.location.Address
 import android.location.Geocoder
 import android.os.Bundle
@@ -9,6 +8,7 @@ import android.util.Log
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -32,23 +32,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ben.bensweatherapp.data.WeatherData
 import com.ben.bensweatherapp.data.presentation.CardData
-import com.ben.bensweatherapp.presentation.HourlyDataRowViewModel
-import com.ben.bensweatherapp.presentation.WeatherCardViewModel
+import com.ben.bensweatherapp.viewmodel.HourlyDataRowViewModel
 import io.reactivex.rxjava3.core.Observer
 import io.reactivex.rxjava3.disposables.Disposable
-import com.ben.bensweatherapp.util.BensDataProviderUtil
+import com.ben.bensweatherapp.viewmodel.MainViewModel
+import com.ben.bensweatherapp.viewmodel.WeatherCardViewModel
+import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.android.HiltAndroidApp
 
-class MainActivity : ComponentActivity() {
+@AndroidEntryPoint
+class MainActivity : ComponentActivity()
+{
+
+    private val viewModel by viewModels<MainViewModel>()
+    private val hourlyDataVM by viewModels<HourlyDataRowViewModel>()
+    private val cardDatVM by viewModels<WeatherCardViewModel>()
+
     val TAG = "MainActivity"
-
     var time: Long = 0L
     var lat: Double? = 0.0
     var long: Double? = 0.0
     var locationName:String = ""
 
-
-    val weatherCard = WeatherCardViewModel()
-    val hourlyData = HourlyDataRowViewModel()
 
     val DeepBlue =  Color(17,35,90)
     val LightBlue = Color(89,111,183)
@@ -56,8 +61,10 @@ class MainActivity : ComponentActivity() {
     val Yellow = Color(246,236,169)
     val bgGradiant = Brush.verticalGradient(listOf(Sage,Yellow,LightBlue,DeepBlue).reversed())
     val cardGradiant = Brush.radialGradient(listOf(DeepBlue,LightBlue))
-    lateinit var dataProviderUtil: BensDataProviderUtil
 
+    init {
+
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,19 +72,18 @@ class MainActivity : ComponentActivity() {
 
         val newLong = -122.083922
         val newLat = 37.4220936
-       dataProviderUtil = BensDataProviderUtil(applicationContext,this)
 
 
         try{
-            dataProviderUtil.hourlyDataSubject.subscribe(getHourlyDataObserver())
-            dataProviderUtil.cardDataSubject.subscribe(getWeatherCardObserver())
+            viewModel.dataProviderUtil.hourlyDataSubject.subscribe(getHourlyDataObserver())
+            viewModel.dataProviderUtil.cardDataSubject.subscribe(getWeatherCardObserver())
 
         }catch (e:Exception){
             e.printStackTrace()
         }
         Log.d(TAG,"using data provider to force on next...")
-        dataProviderUtil.hourlyDataSubject.onNext(dataProviderUtil.apiData)
-        dataProviderUtil.cardDataSubject.onNext(dataProviderUtil.cardData)
+        viewModel.dataProviderUtil.hourlyDataSubject.onNext(viewModel.dataProviderUtil.apiData)
+        viewModel.dataProviderUtil.cardDataSubject.onNext(viewModel.dataProviderUtil.cardData)
 
         setContent {
             MainView()
@@ -102,9 +108,8 @@ class MainActivity : ComponentActivity() {
 
             override fun onNext(t: CardData) {
                 Log.d(TAG,"onNext(CardData)")
-                weatherCard.liveCardData.value = t
-                weatherCard.bitMapData.value = t.icon
-                Log.d(TAG," does onNext equal provider data ${t.equals(dataProviderUtil.cardData)}")
+                viewModel.weatherCard.liveCardData.value = t
+                viewModel.weatherCard.bitMapData.value = t.icon
 
             }
 
@@ -128,8 +133,7 @@ class MainActivity : ComponentActivity() {
 
             override fun onNext(t: WeatherData) {
                 Log.d(TAG,"onNext(WeatherData)")
-                Log.d(TAG," does onNext equal provider data ${t.equals(dataProviderUtil.apiData.hourly)}")
-                hourlyData.liveHourlyData.value = t.hourly
+                viewModel.hourlyData.liveHourlyData.value = t.hourly
 
             }
 
@@ -220,11 +224,10 @@ class MainActivity : ComponentActivity() {
                             LazyColumn(content = {
                                 items(locationList.size){ item ->
 
-                                    Log.d(TAG," lazy item scope = it ${locationList.get(item)}")
                                     TextButton(onClick = {
                                         val lat = locationList[item].latitude
                                         val long = locationList[item].longitude
-                                        dataProviderUtil.updateLocation(lat,long)
+                                        viewModel.dataProviderUtil.updateLocation(lat,long)
                                     }) {
                                         Text(
                                             text =
@@ -244,19 +247,19 @@ class MainActivity : ComponentActivity() {
                 }
 
 
-               weatherCard.WeatherCard(
+                viewModel.weatherCard.WeatherCard(
                     callback = {
                         Log.d(TAG," callback!!!! $visable is not ${!visable}")
                         visable = !visable
                         text = ""
                     },
-                    viewModel = weatherCard,
+                    viewModel = viewModel.weatherCard,
                     backgroundColor = LightBlue,
 
                 )
                 Spacer(modifier = Modifier.height(30.dp))
-                hourlyData.HourlyDataRow(
-                    viewModel = hourlyData
+                viewModel.hourlyData.HourlyDataRow(
+                    viewModel = viewModel.hourlyData
                 )
             }
 
