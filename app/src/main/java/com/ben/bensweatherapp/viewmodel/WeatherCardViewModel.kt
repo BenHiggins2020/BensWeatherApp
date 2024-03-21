@@ -1,4 +1,4 @@
-package com.ben.bensweatherapp.presentation
+package com.ben.bensweatherapp.viewmodel
 
 import android.graphics.Bitmap
 import android.util.Log
@@ -21,13 +21,16 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.ben.bensweatherapp.data.presentation.CardData
+import com.ben.bensweatherapp.util.BensDataProviderUtil
 import java.lang.Double
-import java.text.SimpleDateFormat
 import java.time.LocalDate
-import java.util.*
+import javax.inject.Inject
 import kotlin.math.roundToInt
 
-class WeatherCardViewModel: ViewModel() {
+class WeatherCardViewModel @Inject constructor(
+    private val dataProviderUtil: BensDataProviderUtil
+): ViewModel(
+) {
     val time = LocalDate.now().toString()
 
     private val emptyCard=CardData(0,0.0,0,0.0,0.0,0,time,0,0)
@@ -36,12 +39,35 @@ class WeatherCardViewModel: ViewModel() {
 
     private val TAG = WeatherCardViewModel::class.java.simpleName
 
-    fun updateCardData(newCardData: CardData){
-        Log.d(TAG," updating CardData with new Data ${liveCardData.value?.equals(newCardData)}")
-        liveCardData.value = newCardData
-        Log.d(TAG," updatED CardData with new Data ${liveCardData.value?.equals(newCardData)}")
 
-    }
+    /*fun createDate(cardDataTime:String?): Map<String,String>{
+        Log.e(TAG,"CreateDate (Card): = $cardDataTime")
+//        if(cardDataTime == null) Log.e(TAG,"CreateDate: FAILED - TIME IS NULL"); return emptyMap()
+        var date:LocalDate
+
+        val mDate = cardDataTime!!.substringBefore("T")
+        val time = cardDataTime.substringAfter("T")
+
+        try{
+            date = LocalDate.parse(mDate)
+
+            Log.w(TAG,"Checking whether now ${LocalDate.now()} and api.time $date are equal = ${date == LocalDate.now()}")
+            if(date != LocalDate.now()){
+                //handle get new data
+            }
+
+        }catch(e:java.lang.Exception){
+            Log.d(TAG,"ERROR trying to create date $e")
+            date = LocalDate.now()
+        }
+
+
+        return mapOf(
+            Pair("DOW",(date.dayOfWeek).toString().lowercase().replaceFirstChar({it -> it.uppercase()})),
+            Pair("month",date.month.toString().lowercase().replaceFirstChar({it -> it.uppercase()})),
+            Pair("DOM",date.dayOfMonth.toString().lowercase().replaceFirstChar({it -> it.uppercase()}))
+        )
+    }*/
 
     @Composable
     fun WeatherCard(
@@ -50,26 +76,16 @@ class WeatherCardViewModel: ViewModel() {
         viewModel: WeatherCardViewModel,
         callback: () -> Unit,
 
-    ){
+        ){
         val cardData by viewModel.liveCardData.observeAsState()
+
+
         val bitmap by viewModel.bitMapData.observeAsState()
 
         Log.d(TAG,"cardData = emptyCard? =  ${cardData?.equals(emptyCard)}")
 
-
-        Log.d(TAG,"card data time = $time")
-        var date:LocalDate
-        try{
-            date = LocalDate.parse(cardData?.time)
-
-        }catch(e:java.lang.Exception){
-            Log.d(TAG,"ERROR trying to create date $e")
-            date = LocalDate.now()
-        }
-
-        val DOW = (date.dayOfWeek).toString().lowercase().replaceFirstChar({it -> it.uppercase()})
-        val month = date.month.toString().lowercase().replaceFirstChar({it -> it.uppercase()})
-        val DOM = date.dayOfMonth.toString().lowercase().replaceFirstChar({it -> it.uppercase()})
+        Log.d(TAG,"Creating Date for WeatherCard: ${cardData?.time}")
+        val date = dataProviderUtil.createDate(cardData?.time)
 
 
         var daylights = Double.valueOf (cardData?.daylight_duration.toString())
@@ -102,7 +118,7 @@ class WeatherCardViewModel: ViewModel() {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text= " ${DOW} ${month} ${DOM}  ",
+                            text= " ${date["DOW"]} ${date["month"]} ${date["DOM"]}  ",
                             color = Color.White,
                             fontWeight = FontWeight.Normal,
                             fontSize = 18.sp
