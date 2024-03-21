@@ -14,7 +14,7 @@ android {
         applicationId "com.ben.bensweatherapp"
         minSdk 29
         targetSdk 33
-        versionCode 3
+        versionCode 3.1
         versionName "3.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
