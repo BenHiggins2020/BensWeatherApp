@@ -37,13 +37,36 @@ import javax.inject.Inject
     val TAG = HourlyDataRowViewModel::class.java.simpleName
 
 
-
     @Composable
     fun HourlyDataRow(viewModel: HourlyDataRowViewModel){
         //Setup MutableLiveData
         val data by viewModel.liveHourlyData.observeAsState()
 
-        //Work Begins
+        //create a list of values from Data, which start at the current hour
+        val current_time = SimpleDateFormat("HH:mm").format(Date())
+        val date = LocalDate.now()
+
+        val hour = "${current_time.toString()[0]}${current_time.toString()[1]}"
+        val targetTime = "${date}T$hour:00"
+
+        val hourlyDataTime = dataUtilProvider.apiData.hourly.time.first()
+        val dailyDataTime = dataUtilProvider.apiData.daily.time.first()
+        val currentDataTime = dataUtilProvider.apiData.current.time.first()
+
+        Log.e(TAG,"JANGIS CURRENT_TIME " +
+                "$targetTime first " +
+                "date = ${ data!!.time.first()}" +
+                "hourly ${hourlyDataTime}" +
+                "daily ${dailyDataTime}" +
+                "current ${currentDataTime}")
+
+        //Index of the current time!!
+
+        val index = data?.time?.indexOfFirst {
+            Log.d(TAG,"it = $it == $targetTime  (${it.equals(targetTime)})")
+            it == targetTime
+        }
+
 
         LazyRow(
             Modifier
@@ -54,41 +77,23 @@ import javax.inject.Inject
             content = {
 
                 items(data?.apparent_temperature!!.size){
-                    Log.d("WeatherApp","creating hourly data, @ $it ${data?.time?.get(it)}")
-                    miniHourlyCards(
-                        real_Feel = data?.apparent_temperature?.get(it) ?: 0,
-                        real_Temp = data?.temperature_2m?.get(it) ?: 0,
-                        cloud_cover = data?.cloud_cover?.get(it) ?: 0,
-                        precipitation_probability = data?.precipitation_probability?.get(it) ?: 0,
-                        time = dataUtilProvider.createDate(data?.time?.get(it)),
-                        wind_direction = data?.wind_direction_10m?.get(it) ?: 0,
-                        wind_speed = data?.wind_speed_10m?.get(it) ?: 0,
-                    )
+                    if(it>=index!!){
+                        Log.d("WeatherApp","creating hourly data, @ $it ${data?.time?.get(it)}")
+                        miniHourlyCards(
+                            real_Feel = data?.apparent_temperature?.get(it) ?: 0,
+                            real_Temp = data?.temperature_2m?.get(it) ?: 0,
+                            cloud_cover = data?.cloud_cover?.get(it) ?: 0,
+                            precipitation_probability = data?.precipitation_probability?.get(it) ?: 0,
+                            time = dataUtilProvider.createDate(data?.time?.get(it)),
+                            wind_direction = data?.wind_direction_10m?.get(it) ?: 0,
+                            wind_speed = data?.wind_speed_10m?.get(it) ?: 0,
+                        )
+                    }
+
                 }
             })
     }
 
-    /*fun convertTime(time:String):List<String>{
-        val i = time.indexOfFirst{ it == 'T' }
-        var date = time.slice(IntRange(0,i-1))
-        var t = time.slice(IntRange(i+1,time.length-1))
-        val t_hours = t[0].toString() + t[1].toString()
-        val t_minutes = t[3].toString() + t[4].toString()
-
-        if(t_hours.toInt() > 12){
-            //PM
-            t = (t_hours.toInt() - 12).toString() +":"+ t_minutes + " PM"
-
-        } else if (t_hours == "00"){
-            t = "12"+":"+ t_minutes + " AM"
-        }
-        else{
-            t = t_hours +":"+ t_minutes + " AM"
-        }
-
-        return listOf(t,date)
-
-    }*/
 
 
     @Composable
@@ -101,9 +106,6 @@ import javax.inject.Inject
                         wind_speed:Any,
                         weatherCode:Int?=null
     ) {
-
-        //time
-
 
 
         Box(
