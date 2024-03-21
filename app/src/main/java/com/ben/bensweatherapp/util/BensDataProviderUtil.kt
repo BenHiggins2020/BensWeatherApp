@@ -159,11 +159,9 @@ class BensDataProviderUtil
         }
 
         if(convertedTime[0] == '0'){
-            convertedTime = convertedTime.drop(0)
+            convertedTime = convertedTime.substringAfter('0')
         }
 
-
-        Log.d(TAG,"converted time: $time")
         return convertedTime
 
     }
