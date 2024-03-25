@@ -362,7 +362,7 @@ class BensDataProviderUtil
         launch {
             Log.d(TAG," API CALL latitude = $lat longitude = $long")
             apiData = weatherApi().getWeatherData(latitude = lat.toString(), longitude = long.toString())
-            cardData = apiData.daily.toCardData(0)
+            cardData = apiData.daily.toCardData(1)
             cardData.locationName = locationName
 
             Log.w(TAG,"Current Data: " +
