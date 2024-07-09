@@ -1,11 +1,13 @@
 package com.ben.bensweatherapp.activity
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
 import android.os.Bundle
 import android.util.Log
 import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -16,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.Button
 import androidx.compose.material.Card
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
@@ -28,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ben.bensweatherapp.data.WeatherData
@@ -39,6 +43,7 @@ import com.ben.bensweatherapp.viewmodel.MainViewModel
 import com.ben.bensweatherapp.viewmodel.WeatherCardViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.HiltAndroidApp
+import java.security.Permission
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity()
@@ -74,6 +79,11 @@ class MainActivity : ComponentActivity()
         val newLat = 37.4220936
 
 
+
+        val fineLocationPermissionGranted = this.checkSelfPermission("android.permission.ACCESS_FINE_LOCATION")
+        val coarseLocationPermissionGranted = this.checkSelfPermission("android.permission.ACCESS_COARSE_LOCATION")
+
+
         try{
             viewModel.dataProviderUtil.hourlyDataSubject.subscribe(getHourlyDataObserver())
             viewModel.dataProviderUtil.cardDataSubject.subscribe(getWeatherCardObserver())
@@ -81,9 +91,30 @@ class MainActivity : ComponentActivity()
         }catch (e:Exception){
             e.printStackTrace()
         }
-        Log.d(TAG,"using data provider to force on next...")
-        viewModel.dataProviderUtil.hourlyDataSubject.onNext(viewModel.dataProviderUtil.apiData)
-        viewModel.dataProviderUtil.cardDataSubject.onNext(viewModel.dataProviderUtil.cardData)
+
+        if(fineLocationPermissionGranted == PackageManager.PERMISSION_DENIED && coarseLocationPermissionGranted == PackageManager.PERMISSION_DENIED){
+
+            Log.d(TAG,"Requested Permission, response denied? ,  " +
+                    "${this.checkSelfPermission("android.permission.ACCESS_FINE_LOCATION") == PackageManager.PERMISSION_DENIED} "
+            )
+
+            Log.w(TAG,"Location not granted, using search for setting location. ")
+
+            Toast.makeText(this,
+                "Looks like Location Permission is not granted, " +
+                        "please consider enabling this permission for more personalized functionality!",
+                Toast.LENGTH_LONG)
+                .show()
+
+            viewModel.dataProviderUtil.updateLocation(newLat,newLong)
+
+        }
+        else {
+
+            Toast.makeText(this, "Please wait while we load your location! ",Toast.LENGTH_LONG).show()
+            viewModel.dataProviderUtil.useLocationPermission()
+
+        }
 
         setContent {
             MainView()
@@ -107,7 +138,7 @@ class MainActivity : ComponentActivity()
             }
 
             override fun onNext(t: CardData) {
-                Log.d(TAG,"onNext(CardData)")
+                Log.d(TAG,"getWeatherCardObserver: onNext(CardData)")
                 viewModel.weatherCard.liveCardData.value = t
                 viewModel.weatherCard.bitMapData.value = t.icon
 
@@ -119,7 +150,7 @@ class MainActivity : ComponentActivity()
     private fun getHourlyDataObserver(): Observer<WeatherData> {
         return object: Observer<WeatherData> {
             override fun onSubscribe(d: Disposable) {
-                Log.d(TAG,"On subscribe to disposable")
+                Log.d(TAG,"getHourlyDataObserver: On subscribe to disposable")
 
             }
 
@@ -132,7 +163,7 @@ class MainActivity : ComponentActivity()
             }
 
             override fun onNext(t: WeatherData) {
-                Log.d(TAG,"onNext(WeatherData)")
+                Log.d(TAG,"getHourlyDataObserver: onNext(WeatherData)")
                 viewModel.hourlyData.liveHourlyData.value = t.hourly
 
             }
@@ -258,6 +289,7 @@ class MainActivity : ComponentActivity()
 
                 )
                 Spacer(modifier = Modifier.height(30.dp))
+
                 viewModel.hourlyData.HourlyDataRow(
                     viewModel = viewModel.hourlyData
                 )
@@ -266,7 +298,60 @@ class MainActivity : ComponentActivity()
         }
     }
 
+    @Composable
+    fun RequirePermissionView(){
 
+        Column(modifier = Modifier
+            .fillMaxSize()
+            .background(DeepBlue),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+
+        )
+            {
+
+            Text(
+               /* modifier = Modifier
+                    .fillMaxWidth(.75f)
+                    .align(Alignment.CenterHorizontally),*/
+                text = "Hello! Thank you for using my weather app!",
+                color = Color.White,
+                fontSize = 28.sp,
+                textAlign = TextAlign.Center,
+
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+            Text(
+                modifier = Modifier
+                    .fillMaxWidth(.85f)
+                    .align(Alignment.CenterHorizontally),
+                text = "It looks like you have not granted location permissions,",
+                color = Color.White,
+                fontSize = 25.sp,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+            Text(
+                modifier = Modifier
+                    .fillMaxWidth(.85f)
+                    .align(Alignment.CenterHorizontally),
+                text = "please navigate to app info, and grant location permission to use the app! \n",
+                color = Color.White,
+                fontSize = 25.sp,
+                textAlign = TextAlign.Center,
+            )
+                Spacer(modifier = Modifier.height(40.dp))
+            Button(
+
+                onClick = {
+                    requestPermissions(arrayOf("android.permission.ACCESS_FINE_LOCATION"),0)
+                },
+
+            ) {
+
+            }
+        }
+    }
 }
 
 

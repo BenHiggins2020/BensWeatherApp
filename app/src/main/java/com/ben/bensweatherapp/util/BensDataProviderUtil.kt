@@ -30,6 +30,7 @@ import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import io.reactivex.rxjava3.subjects.PublishSubject
 import io.reactivex.rxjava3.subjects.Subject
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import retrofit2.Retrofit
@@ -61,19 +62,28 @@ class BensDataProviderUtil
 
     init{
         Log.d(TAG,"DataProvider: INIT")
-        getLocation().also {
+
+/*
+getLocation().also {
             if(it.isCompleted){
-                if(long != null && lat != null){
+                Log.w(TAG," getLocation: is complete. ")
+                *//*if(long != null && lat != null){
                     try {
                         val addresses = Geocoder(context).getFromLocation(lat, long, 5)
-
                         locationName = addresses?.get(0)?.locality +", "+ addresses?.get(0)?.adminArea ?: ""
+
                     }catch (e:Exception){
                         e.printStackTrace()
                     }
-                }
+                }*//*
             }else if(it.isCancelled){
                 Log.d(TAG,"getLocation Job is cancelled")
+                val addresses = Geocoder(context).getFromLocation(lat, long, 5)
+
+            } else {
+                Log.w(TAG,"getLocation job is neither cancelled or compelted ")
+                val addresses = Geocoder(context).getFromLocation(lat, long, 5)
+
             }
         }
 
@@ -96,20 +106,24 @@ class BensDataProviderUtil
             }
 
         }
+        */
 
     }
 
     fun updateLocation(lat:Double, long:Double){
         if(ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED){
-            ActivityCompat.requestPermissions(context as Activity, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),0)
-            Log.d(TAG,"getLocation - permission not granted... requesting permission")
+//            ActivityCompat.requestPermissions(context as Activity, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),0)
+            Log.d(TAG,"updateLocation - permission not granted... requesting permission")
         }
 
         this.lat = lat
         this.long = long
         val geocoder = Geocoder(context)
         val location = geocoder.getFromLocation(lat,long,3)
+        Log.d(TAG,"updateLocation: Getting Location(s) from new lat and long, ${location?.size}")
         var name1 = location?.get(0)?.locality
+        Log.d(TAG,"updateLocation: First location found, ${name1}")
+
         if(name1 == "null" || name1.isNullOrEmpty()){
             Log.d(TAG,"BEN - Locality =  ${location?.get(0)?.locality} \n" +
                     "SubLocality =  ${location?.get(0)?.subLocality} \n" +
@@ -121,10 +135,22 @@ class BensDataProviderUtil
             )
             name1 = location?.get(0)?.subAdminArea
         }
+
         locationName = name1 +", "+ location?.get(0)?.adminArea ?: ""
 
+        Log.d(TAG,"updateLocation: Calling weather api!")
+
         callWeatherApi().also {
-            if(it.isCompleted){
+            while(it.isActive){
+                Log.d(TAG,"Waiting on WeatherApiJob")
+            }
+            if (it.isCompleted){
+                Log.d(TAG,"updateLocation: WeatherApiJob Completed")
+
+            }
+
+            Log.d(TAG,"updateLocation: WeatherApiJob is finished")
+
                 callIconApi().also {
                     if(it.isCompleted){
                         cardDataSubject.onNext(cardData)
@@ -132,8 +158,9 @@ class BensDataProviderUtil
                 }
                 Log.d(TAG," Updated Api and Card data ")
                 hourlyDataSubject.onNext(apiData)
-            }
+
         }
+
         Log.d(TAG,"location from geocoder = $location")
 
     }
@@ -210,145 +237,52 @@ class BensDataProviderUtil
         return hourlyDataSubject.share()
     }
 
-    private suspend fun getPermissions() = runBlocking{
-        launch {
-            ActivityCompat.requestPermissions(context as Activity, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),0)
+    fun useLocationPermission(){
+        getLocation().also {
+            if(it.isCompleted){
+                if(long != null && lat != null){
+                    try {
+                        val addresses = Geocoder(context).getFromLocation(lat, long, 5)
+
+                        locationName = addresses?.get(0)?.locality +", "+ addresses?.get(0)?.adminArea ?: ""
+                    }catch (e:Exception){
+                        e.printStackTrace()
+                    }
+                }
+            }else if(it.isCancelled){
+                Log.d(TAG,"getLocation Job is cancelled")
+            }
+        }
+
+        callWeatherApi().also {
+            if (it.isCompleted) {
+                Log.d(TAG, " job is compete")
+                callIconApi().also {
+                    if (it.isCompleted) {
+                        Log.d(TAG, "Initial Api and Card Data updated")
+                        hourlyDataSubject.onNext(apiData)
+                        cardDataSubject.onNext(cardData)
+                    }
+                }
+            } else if (it.isCancelled) {
+                Log.d(TAG, " job is cancelled")
+
+            }
+            while (it.isActive) {
+                Log.d(TAG, "api call is active")
+            }
         }
     }
 
     fun getLocation() = runBlocking{
         launch {
             Log.d(TAG,"getLocation coroutine launched")
-            if(ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED){
-                Log.d(TAG,"getLocation - permission not granted... requesting permission")
 
-                val job = launch {
-                    getPermissions()
-                }
-                job.join()
+            Log.d(TAG," using Location Services.")
 
-            }
-                val lm = context.getSystemService(Service.LOCATION_SERVICE) as LocationManager
-
-                val hasGps = lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
-                val hasNetwork  = lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-                val hasFused = lm.isProviderEnabled(LocationManager.FUSED_PROVIDER)
-
-                if(hasNetwork){
-                    lm.requestLocationUpdates(
-                        LocationManager.NETWORK_PROVIDER,
-                        5000,
-                        0F,
-                        object: LocationListener {
-                            override fun onLocationChanged(p0: Location) {
-                            }
-
-                        })
-                }
-                if(hasGps){
-                    lm.requestLocationUpdates(
-                        LocationManager.GPS_PROVIDER,
-                        5000,
-                        0F,object: LocationListener {
-                            override fun onLocationChanged(p0: Location) {
-                            }
-
-                        })
+            useLocationService()
 
 
-                }
-                if(hasFused){
-                    lm.requestLocationUpdates(
-                        LocationManager.FUSED_PROVIDER,
-                        5000,
-                        0F,
-                        object: LocationListener {
-                            override fun onLocationChanged(p0: Location) {
-                            }
-
-                        })
-                }
-
-                val gpsLocation = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-
-                val networkLocation = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-
-                val fusedLocation = lm.getLastKnownLocation(LocationManager.FUSED_PROVIDER)
-
-                val networkAccuracy = networkLocation?.accuracy ?: 0.0F
-                val fusedAccuracy = fusedLocation?.accuracy ?: 0.0F
-                val gpsAccuracy = gpsLocation?.accuracy ?: 0.0F
-
-                val order = arrayOf(networkAccuracy,fusedAccuracy,gpsAccuracy).also { it.sort() }
-                Log.d(TAG,"order of array = ${order.get(2)}")
-
-                when(order.get(2)){
-                    gpsAccuracy ->{
-                        Log.d(TAG,"highest accuracy = GPS")
-                        val location = gpsLocation
-                        if(location != null){
-                            lat = location?.latitude!!
-                            long = location?.longitude!!
-                            if(location?.time !=null){
-                                time = location?.time!!
-                            }
-                        }
-
-                        else {
-                            Log.d(TAG," time is null!");
-                        }
-                        Log.d(TAG,"Time = time $time")
-                    }
-                    fusedAccuracy -> {
-                        Log.d(TAG,"highest accuracy = FUSED")
-                        val location = fusedLocation
-                        if(location != null){
-                            lat = location.latitude
-                            long = location.longitude
-                            time = location.time
-
-                        }
-                        Log.d(TAG,"Time = time $time")
-                    }
-                    networkAccuracy -> {
-                        Log.d(TAG,"highest accuracy = Network")
-                        val location = networkLocation
-                        if(location != null){
-                            lat = location.latitude
-                            long = location.longitude
-                            time = location.time
-
-                        }
-                        Log.d(TAG,"Time = time $time")
-
-                    }
-
-
-
-            }
-
-
-/*            if(gpsLocation != null){
-
-
-
-
-                if( networkLocation != null && gpsLocation.accuracy < networkLocation.accuracy ){
-                    val location = gpsLocation
-                    lat = location?.latitude
-                    long = location?.longitude
-                    time = gpsLocation.getTime()
-                    Log.e(TAG,"Time = time $time")
-                }
-                else if(networkLocation != null && gpsLocation.accuracy < networkLocation.accuracy){
-                    val location = networkLocation
-                    lat = location?.latitude
-                    long = location?.longitude
-
-                }
-
-
-            }*/
             Log.d(TAG,"getLocation coroutine finished")
 
         }
@@ -358,24 +292,151 @@ class BensDataProviderUtil
 
     }
 
+    private fun useLocationService(){
+        val lm = context.getSystemService(Service.LOCATION_SERVICE) as LocationManager
+        val hasGps = lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
+        val hasNetwork  = lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        val hasFused = lm.isProviderEnabled(LocationManager.FUSED_PROVIDER)
+
+        if(hasNetwork){
+            if (ActivityCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                return
+            }
+            lm.requestLocationUpdates(
+                LocationManager.NETWORK_PROVIDER,
+                5000,
+                0F,
+                object: LocationListener {
+                    override fun onLocationChanged(p0: Location) {
+                    }
+
+                })
+        }
+        if(hasGps){
+            lm.requestLocationUpdates(
+                LocationManager.GPS_PROVIDER,
+                5000,
+                0F,object: LocationListener {
+                    override fun onLocationChanged(p0: Location) {
+                    }
+
+                })
+
+
+        }
+        if(hasFused){
+            lm.requestLocationUpdates(
+                LocationManager.FUSED_PROVIDER,
+                5000,
+                0F,
+                object: LocationListener {
+                    override fun onLocationChanged(p0: Location) {
+                    }
+
+                })
+        }
+
+        val gpsLocation = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+
+        val networkLocation = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+
+        val fusedLocation = lm.getLastKnownLocation(LocationManager.FUSED_PROVIDER)
+
+        val networkAccuracy = networkLocation?.accuracy ?: 0.0F
+        val fusedAccuracy = fusedLocation?.accuracy ?: 0.0F
+        val gpsAccuracy = gpsLocation?.accuracy ?: 0.0F
+
+        val order = arrayOf(networkAccuracy,fusedAccuracy,gpsAccuracy).also { it.sort() }
+        Log.d(TAG,"order of array = ${order.get(2)}")
+
+        when(order.get(2)){
+            gpsAccuracy ->{
+                Log.d(TAG,"highest accuracy = GPS")
+                val location = gpsLocation
+                if(location != null){
+                    lat = location?.latitude!!
+                    long = location?.longitude!!
+                    if(location?.time !=null){
+                        time = location?.time!!
+                    }
+                    Log.d(TAG,"useLocationServices: (gps) location: ${location.latitude} ${location.longitude} ($lat $long)")
+                }
+
+                else {
+                    Log.d(TAG," time is null!");
+                }
+                Log.d(TAG,"Time = time $time")
+            }
+            fusedAccuracy -> {
+                Log.d(TAG,"highest accuracy = FUSED")
+                val location = fusedLocation
+                if(location != null){
+                    lat = location.latitude
+                    long = location.longitude
+                    time = location.time
+                    Log.d(TAG,"useLocationServices: (fusedAccuracy) location: ${location.latitude} ${location.longitude}")
+
+                }
+                Log.d(TAG,"Time = time $time")
+            }
+            networkAccuracy -> {
+                Log.d(TAG,"highest accuracy = Network")
+                val location = networkLocation
+                if(location != null){
+                    lat = location.latitude
+                    long = location.longitude
+                    time = location.time
+                    Log.d(TAG,"useLocationServices: (networkAccuracy) location: ${location.latitude} ${location.longitude}")
+
+                }
+                Log.d(TAG,"Time = time $time")
+
+            }
+
+
+
+        }
+
+    }
+
+
+
     fun callWeatherApi() = runBlocking {
         launch {
-            Log.d(TAG," API CALL latitude = $lat longitude = $long")
+
             apiData = weatherApi().getWeatherData(latitude = lat.toString(), longitude = long.toString())
+            Log.e(TAG,"callWeatherApi: apiData received, time array size ${apiData.hourly.time.size}")
+            hourlyDataSubject.onNext(apiData)
             cardData = apiData.daily.toCardData(1)
             cardData.locationName = locationName
-
-            Log.w(TAG,"Current Data: " +
+            cardDataSubject.onNext(cardData)
+            Log.d(TAG,"callWeatherApi: cardData set, ${cardData.time}")
+            Log.w(TAG,"callWeatherApi: Current Data: " +
                     "${apiData.current.time} $locationName\n" +
                     "Temp ${apiData.current.temperature_2m} ${apiData.current_units.temperature_2m} \n" +
                     "Wind gusts ${apiData.current.wind_gusts_10m} ${apiData.current_units.wind_gusts_10m} \n" +
                     "Wind speed ${apiData.current.wind_speed_10m} ${apiData.current_units.wind_speed_10m}\n " +
                     "Wind direction ${apiData.current.wind_direction_10m} ${apiData.current_units.wind_direction_10m}")
 
-            Log.d(TAG,"Api call time= ${apiData.daily.time.first()} time two = ${apiData.daily.time[1]}")
+            Log.d(TAG,"callWeatherApi: Api call time= ${apiData.daily.time.first()} time two = ${apiData.daily.time[1]}")
             //TODO: call observers
-
         }
+
+
     }
     fun callIconApi() = runBlocking {
         launch {
@@ -385,6 +446,7 @@ class BensDataProviderUtil
             Log.d(TAG,"icon API call  ${res.contentType()}")
             val bitmap = BitmapFactory.decodeStream(res.byteStream())
             cardData.icon = bitmap
+            cardDataSubject.onNext(cardData)
             //TODO: call observers
         }
 

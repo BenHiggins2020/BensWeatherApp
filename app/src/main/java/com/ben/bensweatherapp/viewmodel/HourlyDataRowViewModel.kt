@@ -39,6 +39,9 @@ import javax.inject.Inject
 
     @Composable
     fun HourlyDataRow(viewModel: HourlyDataRowViewModel){
+
+
+
         //Setup MutableLiveData
         val data by viewModel.liveHourlyData.observeAsState()
 
@@ -49,13 +52,16 @@ import javax.inject.Inject
         val hour = "${current_time.toString()[0]}${current_time.toString()[1]}"
         val targetTime = "${date}T$hour:00"
 
-        val hourlyDataTime = dataUtilProvider.apiData.hourly.time.first()
-        val dailyDataTime = dataUtilProvider.apiData.daily.time.first()
-        val currentDataTime = dataUtilProvider.apiData.current.time.first()
+
+
+         var hourlyDataTime = dataUtilProvider.apiData.hourly.time.first()
+         var dailyDataTime = dataUtilProvider.apiData.daily.time.first()
+         var currentDataTime = dataUtilProvider.apiData.current.time.first()
+
 
         Log.e(TAG,"JANGIS CURRENT_TIME " +
                 "$targetTime first " +
-                "date = ${ data!!.time.first()}" +
+                "date = ${ data?.time?.first()}" +
                 "hourly ${hourlyDataTime}" +
                 "daily ${dailyDataTime}" +
                 "current ${currentDataTime}")
