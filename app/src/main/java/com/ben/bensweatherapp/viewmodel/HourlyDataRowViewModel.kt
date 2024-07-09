@@ -1,29 +1,27 @@
  package com.ben.bensweatherapp.viewmodel
 
-import android.graphics.BitmapFactory
 import android.util.Log
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
 import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.ben.bensweatherapp.AppModule
 import com.ben.bensweatherapp.data.Hourly
-import com.ben.bensweatherapp.mappers.toWeatherIcon
 import com.ben.bensweatherapp.util.BensDataProviderUtil
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.util.*
@@ -91,8 +89,9 @@ import javax.inject.Inject
                             cloud_cover = data?.cloud_cover?.get(it) ?: 0,
                             precipitation_probability = data?.precipitation_probability?.get(it) ?: 0,
                             time = dataUtilProvider.createDate(data?.time?.get(it)),
-                            wind_direction = data?.wind_direction_10m?.get(it) ?: 0,
+                            wind_direction = (data?.wind_direction_10m?.get(it) ?: 0),
                             wind_speed = data?.wind_speed_10m?.get(it) ?: 0,
+                            wind_direction_arrow = directionArrow(data?.wind_direction_10m?.get(it))
                         )
                     }
 
@@ -100,24 +99,60 @@ import javax.inject.Inject
             })
     }
 
+     fun mapWindDirection(direction:Int?):String {
 
+         if(direction == null){
+             return "huh?"
+         }
+         if(direction == 0){
+             return "E"
+         } else if (direction < 90){
+             return "NE"
+         } else if (direction == 90 || direction == 360){
+             return "N"
+         } else if (direction < 180){
+             return "NW"
+         }
+         else if (direction == 270){
+             return "W"
+         }
+         else if (direction < 270){
+             return "SW"
+         }
+         else if (direction == 270){
+             return "S"
+         }
+         else if(direction < 360){
+             return "SE"
+         }else {
+             return "huh??"
+         }
+     }
+
+     @Composable
+     fun directionArrow(rotation: Int?): ImageVector {
+
+         return Icons.Default.ArrowForward
+     }
 
     @Composable
-    fun miniHourlyCards(real_Feel:Any,
-                        real_Temp:Any,
-                        cloud_cover:Int,
-                        precipitation_probability:Int,
-                        time:Map<String,String>,
-                        wind_direction:Int,
-                        wind_speed:Any,
-                        weatherCode:Int?=null
+    fun miniHourlyCards(
+        real_Feel:Any,
+        real_Temp:Any,
+        cloud_cover:Int,
+        precipitation_probability:Int,
+        time:Map<String,String>,
+        wind_direction: Int,
+        wind_speed:Any,
+        wind_direction_arrow:ImageVector,
+        weatherCode:Int?=null
     ) {
 
 
         Box(
             modifier = Modifier
                 .fillMaxHeight(.85f)
-                .width(130.dp)
+                .width(200.dp)
                 .padding(start = 20.dp)
         ){
             Spacer(Modifier.width(10.dp))
@@ -172,6 +207,34 @@ import javax.inject.Inject
                                 .align(Alignment.CenterHorizontally)
                                 .padding(5.dp),
                         )
+                        /*Text(
+                            text = "Wind: ${mapWindDirection(wind_direction)}° ",
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .padding(5.dp),
+                        )*/
+                        Text(
+                            text = "Wind Direction: ",
+                            Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .padding(5.dp),
+                        )
+                        Text(
+                            text = " from ${(wind_direction)}° ${mapWindDirection(wind_direction)}",
+                            Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .padding(5.dp),
+                        )
+
+                        Image(
+                            imageVector = wind_direction_arrow,"Arrow",
+                            Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .padding(5.dp)
+                                .rotate((180 - wind_direction.toFloat())
+                            )
+                        )
+
 
 
                     }
