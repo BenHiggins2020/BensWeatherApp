@@ -13,8 +13,8 @@ android {
     defaultConfig {
         applicationId "com.ben.bensweatherapp"
         minSdk 29
-        targetSdk 33
-        versionCode 6
+        targetSdk 34
+        versionCode 7
         versionName
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
